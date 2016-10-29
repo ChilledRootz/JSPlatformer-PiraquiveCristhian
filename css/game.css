@@ -8,6 +8,8 @@
 
 .actor  { position: absolute;  }
 .player { background: rgb(64, 64, 64); }
+.coin { background: rgb(241,229,89); }
+.Lava_Leak {background: rgb(153, 53, 0)}
 
 .game {
   overflow: hidden;
@@ -18,4 +20,6 @@
 
 .lost .player {
   background: rgb(189, 0, 5);
+}
+
 }

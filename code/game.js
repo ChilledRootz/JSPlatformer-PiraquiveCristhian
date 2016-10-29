@@ -1,3 +1,8 @@
+var actorChars = {
+	'@': Player,
+	'o': Coin,
+	'v': Lava_Leak
+};
 function Level(plan) {
   // Use the length of a single row to set the width of the level
   this.width = plan[0].length;
@@ -7,6 +12,7 @@ function Level(plan) {
 
   // Store the individual tiles in our own, separate array
   this.grid = [];
+  this.actors = [];
 
   // Loop through each row in the plan, creating an array in our grid
   for (var y = 0; y < this.height; y++) {
@@ -18,9 +24,9 @@ function Level(plan) {
       // If the character is ' ', assign null.
 
       var ch = line[x], fieldType = null;
-	  if (ch === '@'){
-		//create a new player at that grid position 
-		this.player = new Player (new Vector(x, y));
+	  var Actor = actorChars[ch];
+	  if (Actor){
+		  this.actors.push(new Actor(new Vector(x,y), ch));
 	  }
       // Use if and else to handle the two cases
       else if (ch == "x"){
@@ -38,7 +44,33 @@ function Level(plan) {
     // Push the entire row onto the array of rows.
     this.grid.push(gridLine);
   }
+  this.player = this.actors.filter(function(actor) {
+	  return actor.type == "player";
+  })[0];
 }
+
+//restarting level
+Level.prototype.isFinished = function(){
+	return this.status != null && this.finishDelay < 0;
+};
+
+function Coin (pos) {
+	this.basePos = this.pos = pos.plus(new Vector(0.2, 0.1));
+	this.size = new Vector(0.6, 0.6);
+	this.wobble = Math.random() * Math.PI * 2;
+}
+Coin. prototype.type = 'coin';
+
+//Lava drops function for position, size, speed, and reappearance
+function Lava_Leak(pos, ch){
+	this.pos = pos;
+	this.size = new Vector(0.5, 0.5);
+	if(ch == "v"){
+		this.speed = new Vector(0, 3);
+		this.repeatPos = pos;
+	}
+}
+Lava_Leak.prototype.type = "Lava_Leak";
 
 function Vector(x, y) {
   this.x = x; this.y = y;
@@ -106,25 +138,27 @@ DOMDisplay.prototype.drawBackground = function() {
   return table;
 };
 
-// Draw the player agent
-DOMDisplay.prototype.drawPlayer = function() {
+// Draw the actors
+DOMDisplay.prototype.drawActors = function() {
   // Create a new container div for actor dom elements
   var wrap = elt("div");
 
-  var actor = this.level.player;
-  var rect = wrap.appendChild(elt("div",
+ this.level.actors.forEach(function(actor) {
+	var rect = wrap.appendChild(elt("div",
                                     "actor " + actor.type));
-  rect.style.width = actor.size.x * scale + "px";
-  rect.style.height = actor.size.y * scale + "px";
-  rect.style.left = actor.pos.x * scale + "px";
-  rect.style.top = actor.pos.y * scale + "px";
-  return wrap;
+	rect.style.width = actor.size.x * scale + "px";
+	rect.style.height = actor.size.y * scale + "px";
+	rect.style.left = actor.pos.x * scale + "px";
+	rect.style.top = actor.pos.y * scale + "px";
+ });
+ return wrap;
 };
 
 DOMDisplay.prototype.drawFrame = function() {
   if (this.actorLayer)
     this.wrap.removeChild(this.actorLayer);
-  this.actorLayer = this.wrap.appendChild(this.drawPlayer());
+  this.actorLayer = this.wrap.appendChild(this.drawActors());
+  this.wrap.className = "game " + (this.level.status || "");
   this.scrollPlayerIntoView();
 };
 
@@ -154,6 +188,10 @@ DOMDisplay.prototype.scrollPlayerIntoView = function() {
     this.wrap.scrollTop = center.y + margin - height;
 };
 
+DOMDisplay.prototype.clear = function(){
+	this.wrap.parentNode.removeChild(this.wrap);
+}
+
 Level.prototype.obstacleAt = function(pos, size) {
 	
 	var xStart = Math.floor(pos.x);
@@ -179,17 +217,51 @@ Level.prototype.obstacleAt = function(pos, size) {
 	}
 };
 
+Level.prototype.actorAt = function(actor){
+	for(var i = 0; i < this.actors.length; i++){
+		var other = this.actors[i];
+		if (other != actor && 
+			actor.pos.x + actor.size.x > other.pos.x &&
+			actor.pos.x < other.pos.x + other.size.x &&
+			actor.pos.y + actor.size.y > other.pos.y &&
+			actor.pos.y < other.pos.y + other.size.y)
+			return other;
+	}	
+};
 // Update simulation each step based on keys & step size
 Level.prototype.animate = function(step, keys) {
-
+	
+  if (this.status != null){
+	  this.finishDelay -= step;
+  }	
   // Ensure each is maximum 100 milliseconds 
   while (step > 0) {
     var thisStep = Math.min(step, maxStep);
-      this.player.act(thisStep, this, keys);
-   // Do this by looping across the step size, subtracing either the
+		this.actors.forEach(function (actor){
+			actor.act(thisStep, this, keys)
+		}, this);
+   // Do this by looping across the step size, subtracting either the
    // step itself or 100 milliseconds
     step -= thisStep;
   }
+};
+
+var wobbleSpeed = 8;
+var wobbleDist = 0.07;
+Coin.prototype.act = function(step){
+	this.wobble += step * wobbleSpeed;
+	var wobblePos = Math.sin(this.wobble) * wobbleDist;
+	this.pos = this.basePos.plus(new Vector(0, wobblePos));
+};
+//Lava drop movement 
+Lava_Leak.prototype.act = function(step, level){
+	var newPos = this.pos.plus(this.speed.times(step));
+	if(!level.obstacleAt(newPos, this.size)){
+		this.pos = newPos;
+	}else if(this.repeatPos){
+		this.pos = this.repeatPos;
+	}else
+		this.speed = this.speed.times(-1);
 };
 
 var maxStep = 0.05;
@@ -206,10 +278,7 @@ Player.prototype.moveX = function(step, level, keys) {
   var newPos = this.pos.plus(motion);
     var obstacle = level.obstacleAt(newPos, this.size);
   if (obstacle){
-	if (type = "lava" && this.status == null){
-		  this.status = "lost";
-		  this.finishDelay = 1;
-	}
+	level.playerTouched(obstacle);
   }else
 	this.pos = newPos;  
 };
@@ -224,12 +293,8 @@ Player.prototype.moveY = function(step, level, keys) {
   var newPos = this.pos.plus(motion);
   var obstacle = level.obstacleAt(newPos, this.size);
   if(obstacle){
-	  
-	  if (obstacle == "lava" /*&& this.status == null*/){
-		  this.status = "lost";
-		  this.finishDelay = 1;
-		  this.pos = new Vector(5, 10);
-	  } else if (keys.up && this.speed.y > 0) 
+	  level.playerTouched(obstacle); 
+	  if (keys.up && this.speed.y > 0) 
 		  this.speed.y = -jumpSpeed;
 	  else
 		  this.speed.y = 0;
@@ -244,15 +309,31 @@ Player.prototype.act = function(step, level, keys) {
   this.moveX(step, level, keys);
   this.moveY(step, level, keys);
   
+  var otherActor = level.actorAt (this);
+  if (otherActor){
+	level.playerTouched(otherActor.type, otherActor)
+  }
   // Losing animation
-  if (level.status == "lost") {
+  /*if (level.status == "lost") {
     this.pos.y += step;
     this.size.y -= step;
-  }
+  }*/
+  
 };
 
+Level.prototype.playerTouched = function (type, actor){
+	if(type == "Lava_Leak" || type == "lava" && this.status == null){
+		this.status = "lost";
+		this.finishDelay = 1;
+		
+	} else if(type == 'coin'){
+		this.actors = this.actors.filter(function(other){
+			return other != actor;
+		});
+	}
+}
 
-// Arrow key codes for readibility
+// Arrow key codes for readability
 var arrowCodes = {37: "left", 38: "up", 39: "right", 40: "down"};
 
 // Translate the codes pressed from a key event
@@ -303,13 +384,19 @@ function runAnimation(frameFunc) {
 var arrows = trackKeys(arrowCodes);
 
 // Organize a single level and begin animation
-function runLevel(level, Display) {
+function runLevel(level, Display, andThen) {
   var display = new Display(document.body, level);
 
   runAnimation(function(step) {
     // Allow the viewer to scroll the level
     level.animate(step, arrows);
     display.drawFrame(step);
+	if(level.isFinished()){
+		display.clear();
+		if(andThen)
+			andThen(level.status);
+		return false;
+	}
   });
 }
 
