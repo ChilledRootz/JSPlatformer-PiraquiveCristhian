@@ -1,7 +1,11 @@
 var actorChars = {
 	'@': Player,
 	'o': Coin,
-	'v': Lava_Leak
+	'v': Lava_Leak,
+	'y': Enemy_Roamer,
+	'|': Door,
+	'G': Gravity_Loss,
+	'Q': Quicker
 };
 function Level(plan) {
   // Use the length of a single row to set the width of the level
@@ -34,10 +38,10 @@ function Level(plan) {
       // Because there is a third case (space ' '), use an "else if" instead of "else"
       }else if (ch == "!"){
         fieldType = "lava";
-	  }// Checking for character y and setting it as a floater
+	  }/* Checking for character y and setting it as a floater
 	  else if (ch == "y"){
 		  fieldType = "floater";
-	  }
+	  }*/
       // "Push" the fieldType, which is a string, onto the gridLine array (at the end).
       gridLine.push(fieldType);
     }
@@ -53,24 +57,53 @@ function Level(plan) {
 Level.prototype.isFinished = function(){
 	return this.status != null && this.finishDelay < 0;
 };
-
+//coins
 function Coin (pos) {
 	this.basePos = this.pos = pos.plus(new Vector(0.2, 0.1));
 	this.size = new Vector(0.6, 0.6);
 	this.wobble = Math.random() * Math.PI * 2;
 }
-Coin. prototype.type = 'coin';
+Coin.prototype.type = 'coin';
+//Gravity decreaser
+function Gravity_Loss (pos) {
+	this.basePos = this.pos = pos.plus(new Vector(0.2, 0.1));
+	this.size = new Vector(0.6, 0.6);
+	this.wobble = Math.random() * Math.PI * 2;
+}
+Gravity_Loss.prototype.type = 'gravityLoss';
 
+//checkpoint
+function Quicker (pos) {
+	this.basePos = this.pos = pos.plus(new Vector(0.2, 0.1));
+	this.size = new Vector(0.6, 0.6);
+	this.wobble = Math.random() * Math.PI * 2;
+}
+Quicker.prototype.type = 'quick';
 //Lava drops function for position, size, speed, and reappearance
 function Lava_Leak(pos, ch){
 	this.pos = pos;
 	this.size = new Vector(0.5, 0.5);
 	if(ch == "v"){
-		this.speed = new Vector(0, 3);
+		this.speed = new Vector(0, 2);
 		this.repeatPos = pos;
 	}
 }
 Lava_Leak.prototype.type = "Lava_Leak";
+
+function Enemy_Roamer(pos, ch) {
+	this.pos = pos;
+	this.size = new Vector(0.8,1);
+	if (ch == "y"){
+		this.speed = new Vector(2,0);
+	}
+}
+Enemy_Roamer.prototype.type = "Enemy_Roamer";
+
+function Door(pos){
+	this.basePos = this.pos = pos.plus(new Vector(0, 0));
+	this.size = new Vector(1,1);
+}
+Door.prototype.type = "door";
 
 function Vector(x, y) {
   this.x = x; this.y = y;
@@ -90,7 +123,7 @@ Vector.prototype.times = function(factor) {
 // A Player has a size, speed and position.
 function Player(pos) {
   this.pos = pos.plus(new Vector(0, -0.5));
-  this.size = new Vector(0.8, 1.5);
+  this.size = new Vector(0.7,0.8);
   this.speed = new Vector(0, 0);
 }
 Player.prototype.type = "player";
@@ -263,31 +296,65 @@ Lava_Leak.prototype.act = function(step, level){
 	}else
 		this.speed = this.speed.times(-1);
 };
+//Enemy movement
+Enemy_Roamer.prototype.act = function(step, level){
+	var newPos = this.pos.plus(this.speed.times(step));
+	if (!level.obstacleAt(newPos, this.size))
+		this.pos = newPos;
+	else if (this.repeatPos)
+		this.pos = this.repeatPos;
+	else
+		this.speed = this.speed.times(-1);
+};
+//Door behavior
+Door.prototype.act = function(){
+	this.pos = this.basePos.plus(new Vector(0, 0));
+	
+};
+
+Quicker.prototype.act = function(step){
+	var wobbleSpeed = 30;
+	this.wobble += step * wobbleSpeed;
+	var wobblePos = Math.sin(this.wobble) * wobbleDist;
+	this.pos = this.basePos.plus(new Vector(wobblePos, wobblePos));
+};
+
+var wobbleSpeed = 15;
+var wobbleDist = 0.05;
+Gravity_Loss.prototype.act = function(step){
+	var wobbleSpeed = 5;
+	this.wobble += step * wobbleSpeed;
+	var wobblePos = Math.sin(this.wobble) * wobbleDist;
+	this.pos = this.basePos.plus(new Vector(wobblePos, 0));
+};
 
 var maxStep = 0.05;
 
-var playerXSpeed = 15;
+var playerXSpeed = 7;
 //how obstacles are dealt with in the move x and move y functions?
 //take a look at move y in particular for a lot of the action.
 Player.prototype.moveX = function(step, level, keys) {
+	
   this.speed.x = 0;
   if (keys.left) this.speed.x -= playerXSpeed;
   if (keys.right) this.speed.x += playerXSpeed;
-
+  
   var motion = new Vector(this.speed.x * step, 0);
   var newPos = this.pos.plus(motion);
     var obstacle = level.obstacleAt(newPos, this.size);
   if (obstacle){
 	level.playerTouched(obstacle);
   }else
-	this.pos = newPos;  
+	this.pos = newPos; 
+
 };
 
 var gravity = 50;
-var jumpSpeed = 25;
+var jumpSpeed = 20;
 var playerYSpeed = 7;
 
 Player.prototype.moveY = function(step, level, keys) {
+	
   this.speed.y += step * gravity; 
   var motion = new Vector(0, this.speed.y * step);
   var newPos = this.pos.plus(motion);
@@ -300,9 +367,8 @@ Player.prototype.moveY = function(step, level, keys) {
 		  this.speed.y = 0;
   } else {
 		this.pos = newPos;	  
-  }
+  } 
   
-  //if (keys.down) this.speed.y += playerYSpeed; 
 };
 
 Player.prototype.act = function(step, level, keys) {
@@ -313,29 +379,60 @@ Player.prototype.act = function(step, level, keys) {
   if (otherActor){
 	level.playerTouched(otherActor.type, otherActor)
   }
+  
   // Losing animation
-  /*if (level.status == "lost") {
+  if (level.status == "lost") {
     this.pos.y += step;
     this.size.y -= step;
-  }*/
-  
+  }
+  if(level.status == "won"){
+	this.pos.x += step;
+	this.size.x -= step;
+  } 
 };
 
-Level.prototype.playerTouched = function (type, actor){
-	if(type == "Lava_Leak" || type == "lava" && this.status == null){
+Level.prototype.playerTouched = function (type, actor, pos){
+	//if the player touches lava, a lava drop, or a roamer and the player hasn't won, the Player loses
+	if((type == "Lava_Leak" || type == "lava" || type == "Enemy_Roamer") && this.status == null /*|| this.status == 'speedster' || this.status == 'lighter')*/){
 		this.status = "lost";
-		this.finishDelay = 1;
-		
+		gravity = 50;
+		jumpSpeed = 20;
+		playerXSpeed = 7;
+		this.finishDelay = 0.5;
 	} else if(type == 'coin'){
 		this.actors = this.actors.filter(function(other){
 			return other != actor;
 		});
+	} else if (type == 'door'){
+		//If there aren't any coins left, the player wins
+		if (!this.actors.some(function(actor) {
+			return actor.type == "coin";
+		})) {
+			this.status = "won";
+			gravity = 50;
+			jumpSpeed = 20;
+			playerXSpeed = 7;
+			this.finishDelay = 0;
+		}
+	} else if (type == 'gravityLoss'){
+		this.actors = this.actors.filter(function(other){
+			return other != actor;
+		});
+			gravity = gravity/8;
+			jumpSpeed = jumpSpeed/3;
+			playerXSpeed = 7;
+	} else if (type == 'quick'){	
+		this.actors = this.actors.filter(function(other){
+			return other != actor;
+		});
+		playerXSpeed = playerXSpeed * 2;
+		gravity = 50;
+		jumpSpeed = 20;
 	}
-}
+};
 
 // Arrow key codes for readability
 var arrowCodes = {37: "left", 38: "up", 39: "right", 40: "down"};
-
 // Translate the codes pressed from a key event
 function trackKeys(codes) {
   var pressed = Object.create(null);
@@ -407,6 +504,10 @@ function runGame(plans, Display) {
     runLevel(new Level(plans[n]), Display, function(status){
 		if (status == "lost")
 			startLevel(n);
+		else if (n < plans.length - 1 && status == "won")
+			startLevel(n + 1);			
+		else 
+			console.log("You win!");
 	});
   }
   startLevel(0);

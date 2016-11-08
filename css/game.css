@@ -1,15 +1,43 @@
-.background    { background: rgb(74, 156, 164);
-                 table-layout: fixed;
-                 border-spacing: 0;   }
+.background    { 
+		background-image: url("http://pixeljoint.com/files/icons/full/cave_bg.png");/*rgb(74, 156, 164);*/
+        table-layout: fixed;
+        border-spacing: 0;   
+}
 .background td { padding: 0;          }
-.lava          { background: rgb(255, 89, 0); }
-.wall          { background: rgb(29, 40, 41);   }
-.floater	   { background: rgb(246, 234, 7);}
+.lava          { background-image: url("https://img0.etsystatic.com/069/0/5132637/il_570xN.815967776_tfb1.jpg");
+		    background-size: contain;}
+.wall          {background-image: url("http://i.imgur.com/ob5wUHf.png");
+		   background-size: contain;}
 
 .actor  { position: absolute;  }
-.player { background: rgb(64, 64, 64); }
-.coin { background: rgb(241,229,89); }
-.Lava_Leak {background: rgb(153, 53, 0)}
+.player { 
+	background-image: url("https://gameartpartners.com/wp-content/uploads/edd/2015/03/Darkness_Knight_Featured.png");
+	background-size: 20px;
+}
+.coin { 
+	background-image: url("http://static.tumblr.com/25e63023a46de411c8360b3c1b4a61ab/t4zvvdp/F6voai64y/tumblr_static_ag9tbg241jc480owsog4s4sc4.gif");
+	background-size: contain;
+}
+.Lava_Leak {
+	background-image: url("http://www.bombe.tv/geek/wp-content/uploads/2012/06/zelda_fire_render.gif");
+	background-size: contain;
+}
+.Enemy_Roamer{
+	background-image: url("http://pixeljoint.com/files/icons/full/slime_idle.gif");
+	background-size: 20px;
+}
+.door{
+	background-image: url("http://rs183.pbsrc.com/albums/x114/PeachesBaby1957/Misc/Door2.gif~c200");
+	background-size: contain;
+}
+.gravityLoss {
+	background-image: url("https://lh3.googleusercontent.com/8MntHBZIVDwoCAiw5JvN8MHR5bsMv51jVLMt4JUjeyjaSW2B4z3nhHHmk9f8HUgkRkY=w300");
+	background-size: contain;
+}
+.quick {
+	background-image: url("https://openclipart.org/image/2400px/svg_to_png/215458/flash.png");
+	background-size: contain;
+}
 
 .game {
   overflow: hidden;
@@ -19,7 +47,10 @@
 }
 
 .lost .player {
-  background: rgb(189, 0, 5);
+	background-image: url("http://pixelartmaker.com/art/46998e78cc88947.png");
+	background-size: contain;
+	box-shadow: -4px -7px 8px red, 4px -7px 8px red;
 }
-
+.won .player{
+	box-shadow: -4px -7px 8px yellow, 4px -7px 8px yellow;
 }
